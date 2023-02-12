@@ -26,19 +26,20 @@ class SA:
         else:
             raise ValueError("gen_func must be 'gaussian' or 'cauchy'")
     
-    def gaussian_gen_func(self, x):
+    def gaussian_gen_func(self, x, bound_min, bound_max):
         """
             Generate random solution with multivariate Gaussian distribution
                 mean: current solution: x
                 sigma: temperature -> covariate matrix (for multivariate gaussian)
         """
-        cov = np.identity(x.size) * self.temp
+        current_x = np.array(x)
+        cov = np.identity(current_x.size) * self.temp
         next_x = np.random.multivariate_normal(x, cov, size=1)[0]
-        # Apply constraint
-        #next_x = np.clip(next_x, a_min = -100, a_max = 100)
-        return next_x
+        # Apply constraint (bounds)
+        next_x = np.clip(next_x, a_min = np.array(bound_min), a_max = np.array(bound_max))
+        return next_x.tolist()
 
-    def cauchy_gen_func(self, x):
+    def cauchy_gen_func(self, x, bound_min, bound_max):
         pass
     
     def check_accept(self, delta_e):
@@ -54,14 +55,27 @@ class SA:
         # Annealing type 2: cool by constant temp
         # self.temp -= self.cooling_rate
     
-    def optimize(self, objective_func, num_var, initial_solution, constraint):
+    def optimize(self, objective_func, n_dim, initial_solution = None):
+        """_summary_
+
+        Args:
+            objective_func (_type_): any fitness function class object with the same API as classes in benchmark_functions
+            n_dim (_type_): number of dimension for solution
+            initial_solution (_type_, optional): Initial solution for optimization. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         self.iter = 1
         self.temp = self.init_temp
         self.solution = None
         self.energy = inf
         # 1. Initialize a random solution
-        new_solution = initial_solution
-        # np.array([random() * (constraint['max'] - constraint['min']) + constraint['min'] for x in range(num_var)])
+        min_bounds, max_bounds = objective_func.suggested_bounds()
+        if not initial_solution:
+            new_solution = [random() * (max_bounds[idx] - min_bounds[idx]) + min_bounds[idx] for idx in range(n_dim)]
+        else:
+            new_solution = initial_solution
         while True:
             # 2. Evaluate
             new_energy = objective_func(new_solution)
@@ -78,10 +92,10 @@ class SA:
                     self.annealing()
                     self.iter = 1
                     # TODO: Next step with generating function
-                    new_solution = self.gen_func(self.solution)
+                    new_solution = self.gen_func(self.solution, min_bounds, max_bounds)
             else:
                 self.iter += 1
                 # TODO: Next step with generating function
-                new_solution = self.gen_func(self.solution)
+                new_solution = self.gen_func(self.solution, min_bounds, max_bounds)
         return self.solution, self.energy
         
