@@ -9,11 +9,11 @@ class SA:
     solution = None
     iter = 1
     energy = inf # initialize with positive infinite
-    min_energy = inf
-    max_energy = -inf
+    temp = 0
+    history = []
     
     def __init__(self, init_temp, terminate_temp, cooling_rate, max_iter, gen_func):
-        self.temp = init_temp
+        self.init_temp = init_temp
         self.terminate_temp = terminate_temp
         if init_temp < terminate_temp:
             raise ValueError("Initial temp must be higher than terminate temperature")
@@ -34,6 +34,8 @@ class SA:
         """
         cov = np.identity(x.size) * self.temp
         next_x = np.random.multivariate_normal(x, cov, size=1)[0]
+        # Apply constraint
+        #next_x = np.clip(next_x, a_min = -100, a_max = 100)
         return next_x
 
     def cauchy_gen_func(self, x):
@@ -43,8 +45,12 @@ class SA:
         """
             Determine whether accept the new solution
         """
-        return (delta_e <= 0 or 
-                exp(-delta_e / self.temp) > random())
+        if delta_e > 0:
+            prob = exp(-delta_e / self.temp)
+            print(f'prob: {prob}')
+        return (delta_e <= 0 or prob > random())
+        #return (delta_e <= 0 or 
+        #        exp(-delta_e / self.temp) > random())
     
     def annealing(self):
         # cool by scale
@@ -53,15 +59,22 @@ class SA:
         # self.temp -= self.cooling_rate
     
     def optimize(self, objective_func, num_var, initial_solution, constraint):
+        self.iter = 1
+        self.temp = self.init_temp
+        self.solution = None
+        self.energy = inf
         # 1. Initialize a random solution
         new_solution = initial_solution
-        # [random() * (constraint['max'] - constraint['min']) + constraint['min'] for x in range(num_var)]
-        self.iter = 1
+        # np.array([random() * (constraint['max'] - constraint['min']) + constraint['min'] for x in range(num_var)])
         while True:
             # 2. Evaluate
             new_energy = objective_func(new_solution)
             delta_e = new_energy - self.energy
+            #print(f'new solution: {self.solution}')
+            print(f'new energy: {new_energy}, last energy: {self.energy}, delta E: {delta_e}')
+            print(f'iter-k: {self.iter}')
             if self.check_accept(delta_e):
+                print('accept')
                 self.solution = new_solution
                 self.energy = new_energy
             # 3. Check reach max iter for current temperature
@@ -71,12 +84,13 @@ class SA:
                     break
                 else:
                     self.annealing()
-                    iter = 1
+                    self.iter = 1
                     # TODO: Next step with generating function
                     new_solution = self.gen_func(self.solution)
             else:
                 self.iter += 1
                 # TODO: Next step with generating function
                 new_solution = self.gen_func(self.solution)
+            print('-----------------------')
         return self.solution, self.energy
         
