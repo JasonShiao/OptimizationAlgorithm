@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "optimization"
+version = "0.1.0"
+description = "Implement or test some optimization algorithms"
+authors = ["Jason Shiao <b01901105@ntu.edu.tw>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+numpy = "^1.16.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
