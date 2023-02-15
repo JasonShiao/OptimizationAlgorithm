@@ -17,6 +17,17 @@ numpy = "*"
 packaging = "*"
 
 [[package]]
+name = "graycode"
+version = "1.0.5"
+description = "Convert two's complement integer to gray code and vice versa"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "graycode-1.0.5.tar.gz", hash = "sha256:43d4a79e7787c5aea89c554d2c462783af91cbb65ebb13284f519874145be0f8"},
+]
+
+[[package]]
 name = "numpy"
 version = "1.21.1"
 description = "NumPy is the fundamental package for array computing with Python."
@@ -101,4 +112,4 @@ numpy = ">=1.16.5"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "ad2e0061fee2645b7a01d47a21555ca60c34acedc509ed5e9df0ac746df3a36a"
+content-hash = "c02302040d02e050726a06b1730184a63baf7167f548f2d38c08de77709fac20"
