@@ -13,32 +13,37 @@ class PSO:
         self.acc_coeff_2 = acc_coeff_2
         self.num_particle = num_particle
         self.weight = weight
-    def update_particles(self, bound_min, bound_max):
+    def update_particles(self, bounds_min, bounds_max, v_max):
         for idx, particle in enumerate(self.particles):
             particle.v = [self.weight * particle.v[d] + self.acc_coeff_1 * random() * (particle.p_best[d] - particle.pos[d]) + self.acc_coeff_2 * random() * (self.g_best['pos'][d] - particle.pos[d]) 
                             for d in range(self.n_dim)]
-            # TODO: Restrict velocity
-            ........
+            # Restrict velocity [-v_max, v_max]
+            particle.v = [ v_max[d] if particle.v[d] > v_max[d] else -v_max[d] if particle.v[d] < -v_max[d] else particle.v[d]
+                            for d in range(self.n_dim)]
             particle.pos = [particle.pos[d] + particle.v[d] 
                             for d in range(self.n_dim)]
             # Bounce
             for d in range(self.n_dim):
-                if particle.pos[d] > bound_max[d]:
-                    particle.pos[d] = bound_max[d]
+                if particle.pos[d] > bounds_max[d]:
+                    particle.pos[d] = bounds_max[d]
                     particle.v[d] = -particle.v[d]
-                elif particle.pos[d] < bound_min[d]:
-                    particle.pos[d] = bound_min[d]
+                elif particle.pos[d] < bounds_min[d]:
+                    particle.pos[d] = bounds_min[d]
                     particle.v[d] = -particle.v[d]
             self.particles[idx] = particle
     
-    def optimize(self, objective_func, n_dim, max_iter, tolerance, init_pos = None, init_v = None):
+    def optimize(self, objective_func, n_dim, max_iter, tolerance, init_pos = None, init_v = None, v_max = None):
         self.n_dim = n_dim
         self.g_best = {'idx': 0, 'pos': [], 'value': inf}
+        bounds_min, bounds_max = objective_func.suggested_bounds()
         if init_pos and init_v:
             self.particles = [self.Particle(init_pos[i], init_v[i]) for i in range(self.num_particle)]
         else:
             # TODO: Randomly initialize particles
             return None
+        if v_max == None:
+            # Generate default v_max by boundary
+            v_max = [ (bounds_max[d] - bounds_min[d]) / (max_iter / 5) for d in range(n_dim)]
         # Main PSO loop
         iter = 0
         while True: 
@@ -55,7 +60,7 @@ class PSO:
                         self.g_best['pos'] = self.particles[idx].pos
                         self.g_best['idx'] = idx
             # 2. Update particle
-            self.update_particles(*(objective_func.suggested_bounds()))
+            self.update_particles(bounds_min, bounds_max, v_max)
             # 3. Reach terminate condition?
             iter += 1
             if iter >= max_iter or self.g_best['value'] < tolerance:
