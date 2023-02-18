@@ -1,5 +1,6 @@
 import graycode
 import numpy as np
+from random import random
 
 # 1. Encode input
 # 2. 
@@ -12,10 +13,29 @@ class GA:
     num_bit_gene = 0 # number of bits per gene (encoded)
     n_dim = 0
     graycode_genes = None # genes represented with graycode value
+    fitnesses = None
+    find_min = False
     def __init__(self):
         pass
-    def select(self):
+    def roulette_select(self):
         # self.graycode_genes
+        if self.find_min:
+            invert_fitnesses = [1 / fitness for fitness in self.fitnesses]
+            roulette_map = []
+            accumulate = 0
+            for invert_fitness in invert_fitnesses:
+                accumulate += invert_fitness
+                roulette_map.append(accumulate)
+            roulette_map = [val / accumulate for val in roulette_map]
+        else: # find max
+            roulette_map = []
+            accumulate = 0
+            for fitness in self.fitnesses:
+                accumulate += fitness
+                roulette_map.append(accumulate)
+            roulette_map = [val / accumulate for val in roulette_map]
+            pointer = random()
+            
         pass
     def mutate(self, gene):
         pass
