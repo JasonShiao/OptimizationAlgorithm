@@ -2,13 +2,6 @@ import graycode
 import numpy as np
 import random
 import math
-
-# 1. Encode input
-# 2. 
-# graycode.tc_to_gray_code(i) # O(1)
-# graycode.gray_code_to_tc(i) # O(n)
-
-
     
 def bitwise_not(x, n_bits):
     """bitwise not the encoded value
@@ -61,7 +54,7 @@ class GrayCodeEncoder(Encoder):
 
 class Chromosome:
     encoder = None
-    def __init__(self, genes, encoder, encoded_genes=False):
+    def __init__(self, genes, encoder: Encoder, encoded_genes=False):
         self.encoder = encoder
         if encoded_genes:
             self.encoded_genes = genes
@@ -81,8 +74,9 @@ class Chromosome:
         Args:
             val (_type_): _description_
         """
-        self.encoded_genes = self.encoder.encode(val)
-        self._genes = self.encoder.decode(self.encoded_genes)
+        if self.encoder is not None:
+            self.encoded_genes = self.encoder.encode(val)
+            self._genes = self.encoder.decode(self.encoded_genes)
     
     def __str__(self):
         return str(self.genes)
@@ -93,7 +87,8 @@ class Chromosome:
     @encoded_genes.setter
     def encoded_genes(self, val):
         self._encoded_genes = val
-        self._genes = self.encoder.decode(self.encoded_genes)
+        if self.encoder is not None:
+            self._genes = self.encoder.decode(self.encoded_genes)
     
 
 class GA:
@@ -143,6 +138,8 @@ class GA:
     
     def mutate(self, chr, mutate_rate=0.05):
         encoded_genes = chr.encoded_genes
+        if self.encoder is None:
+            raise Exception("Encoder is not defined")
         for d in range(self.n_dim):
             for i in range(self.encoder.n_bits[d]):
                 if random.random() < mutate_rate:
@@ -159,6 +156,8 @@ class GA:
             mask (_type_): mask for crossover
         Returns: two child chromosomes
         """
+        if self.encoder is None:
+            raise Exception("Encoder is not defined")
         new_genes_for_chr_1 = [(masks[d] & chr_2.encoded_genes[d]) | (chr_1.encoded_genes[d] & bitwise_not(masks[d], chr_1.encoder.n_bits[d])) 
                                for d in range(self.n_dim)]
         new_chr_1 = Chromosome(new_genes_for_chr_1, self.encoder, True)
