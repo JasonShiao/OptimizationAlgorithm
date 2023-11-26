@@ -2,6 +2,8 @@ import graycode
 import numpy as np
 import random
 import math
+from typing import List, Dict, Tuple
+import copy
     
 def bitwise_not(x, n_bits):
     """bitwise not the encoded value
@@ -45,6 +47,9 @@ class GrayCodeEncoder(Encoder):
         return x_graycode_encoded
     
     def decode(self, x):
+        """
+            NOTE: The decoded value is mapped by graycode table, not the ordinary binary table
+        """
         ranges = [self.max_bounds[d] - self.min_bounds[d] for d in range(self.n_dim)]
         x_integer_encoded = [graycode.gray_code_to_tc(x[d]) for d in range(self.n_dim)]
         x_recovered = [ranges[d] * x_integer_encoded[d] / (2 ** self.n_bits[d] - 1) + self.min_bounds[d]
@@ -53,7 +58,6 @@ class GrayCodeEncoder(Encoder):
 
 
 class Chromosome:
-    encoder = None
     def __init__(self, genes, encoder: Encoder, encoded_genes=False):
         self.encoder = encoder
         if encoded_genes:
@@ -105,10 +109,13 @@ class GA:
     population = [] # population of chromosomes represented with graycode encoded genes
     fitnesses = []
     roulette_map = []
-    encoder = None
+    #encoder = None
     def __init__(self):
         pass
     def upadte_roulette(self):
+        """ 
+            The probability of selecting a chromosome is proportional to its fitness value
+        """
         self.roulette_map = []
         if self.find_min:
             invert_fitnesses = [1 / fitness for fitness in self.fitnesses]
@@ -136,18 +143,24 @@ class GA:
             raise Exception("Amount of selected parents should match n")
         return next_parents
     
-    def mutate(self, chr, mutate_rate=0.05):
+    def mutate(self, chr: Chromosome, mutate_rate: float = 0.05):
+        """ Mutate the chromosome in place
+
+        Args:
+            chr (Chromosome): _description_
+            mutate_rate (float, optional): _description_. Defaults to 0.05.
+        """
         encoded_genes = chr.encoded_genes
-        if self.encoder is None:
-            raise Exception("Encoder is not defined")
-        for d in range(self.n_dim):
-            for i in range(self.encoder.n_bits[d]):
+        for d in range(chr.encoder.n_dim):
+            for i in range(chr.encoder.n_bits[d]):
                 if random.random() < mutate_rate:
                     encoded_genes[d] = encoded_genes[d] ^ (1 << i)
+                    #print(f" mutate triggered: {encoded_genes[d]}")
+        # Must set to update the genes property
         chr.encoded_genes = encoded_genes
-        return chr
     
     def crossover(self, chr_1, chr_2, masks):
+        # TODO: crossover with probability (0.0 - 1.0)
         """Based on truth table, the chr_1' = (mask & chr_2) | (chr_1 & bitwise_not(mask))
                                      chr_2' = (chr_1 & mask) | (bitwise_not(mask) & chr_2)
         Args:
@@ -156,14 +169,12 @@ class GA:
             mask (_type_): mask for crossover
         Returns: two child chromosomes
         """
-        if self.encoder is None:
-            raise Exception("Encoder is not defined")
         new_genes_for_chr_1 = [(masks[d] & chr_2.encoded_genes[d]) | (chr_1.encoded_genes[d] & bitwise_not(masks[d], chr_1.encoder.n_bits[d])) 
-                               for d in range(self.n_dim)]
-        new_chr_1 = Chromosome(new_genes_for_chr_1, self.encoder, True)
+                               for d in range(chr_1.encoder.n_dim)]
+        new_chr_1 = Chromosome(new_genes_for_chr_1, chr_1.encoder, True)
         new_genes_for_chr_2 = [(chr_1.encoded_genes[d] & masks[d]) | (bitwise_not(masks[d] & chr_2.encoded_genes[d], chr_2.encoder.n_bits[d])) 
-                               for d in range(self.n_dim)]
-        new_chr_2 = Chromosome(new_genes_for_chr_2, self.encoder, True)
+                               for d in range(chr_2.encoder.n_dim)]
+        new_chr_2 = Chromosome(new_genes_for_chr_2, chr_2.encoder, True)
         
         return new_chr_1, new_chr_2
     
@@ -187,58 +198,64 @@ class GA:
             #masks.append([0] * low + [1] * (high - low) + [0] * (n_bits[d] - high))
         return masks
     
-    def optimize(self, objective_func, initial_population, n_dim, find_min = True, mutate_rate = 0.05, eliticism = 0.1):
-        # 0. Initialize
+    def optimize(self, objective_func, initial_population: List[Chromosome], find_min: bool = True, mutate_rate: float = 0.05, eliticism: float = 0.1):
+        # Check (Validate) input
+        if not isinstance(initial_population, list) or not all(isinstance(item, Chromosome) for item in initial_population):
+            raise Exception("Initial population should be a list of Chromosome")
         if len(initial_population) == 0:
-            return # TODO: Randomly generate initial genes
+            raise Exception("Initial population should not be empty")
+        # 0. Initialize
         self.fitnesses = []
         self.roulette_map = []
-        self.n_dim = n_dim
+        #self.n_dim = initial_population[0].encoder.n_dim
         self.population = initial_population
-        self.encoder = self.population[0].encoder
         self.find_min = find_min # Typical optimization problem in benchmark_function is to find min
-        # 1. evaluate fitness value
-        self.fitnesses = [objective_func(self.population[idx].genes) for idx in range(len(self.population))]
-        # 2. update roulette
-        self.upadte_roulette()
-        masks = self.gen_two_point_crossover_masks(self.n_dim, self.encoder.n_bits)
+        masks = self.gen_two_point_crossover_masks(initial_population[0].encoder.n_dim, self.population[0].encoder.n_bits)
         not_improve_cnt = 0
         round_cnt = 0
-        best_fitness = math.inf
+        best_fitness = math.inf if self.find_min else -math.inf
         while True:  
+            # 1. evaluate fitness value with current population
+            self.fitnesses = [objective_func(self.population[idx].genes) for idx in range(len(self.population))]
+            # 2. update roulette
+            self.upadte_roulette()
+            # 3. Update best and Check termination condition
+            if not self.find_min and best_fitness > max(self.fitnesses):
+                best_fitness = max(self.fitnesses)
+                not_improve_cnt = 0
+            elif self.find_min and best_fitness > min(self.fitnesses):
+                best_fitness = min(self.fitnesses)
+                not_improve_cnt = 0
+            else:
+                not_improve_cnt += 1
+            if not_improve_cnt > 100:
+                break
+            
             elite_list = []
-            # 1. Eliticism selection
+            # 4. Eliticism selection
             sort_index = np.argsort(np.array(self.fitnesses))
             num_elite = round(eliticism * len(self.population))
             if len(self.population) - num_elite % 2 == 1:
                 num_elite += 1
             for i in range(num_elite):
                 elite_list.append(self.population[sort_index[i]])
-            # 2. roulette select parents for next round
+            # 5. roulette select parents for this round of evolution
             selected_parents_idx = [self.roulette_select(2) 
                                      for i in range(math.floor((len(self.population) - num_elite) / 2))]
-            # 3. crossover
+            # 6. crossover
             children_list = []
+            # TODO: crossover with probability
             for i in range(len(selected_parents_idx)):
                 children_list += self.crossover(self.population[selected_parents_idx[i][0]], 
                                        self.population[selected_parents_idx[i][1]],
                                        masks)
-            # 4. mutate
-            children_list = [self.mutate(chr, mutate_rate) for chr in children_list]
-            # 5 Update population
+            # 7. mutate
+            for chr in children_list:
+                self.mutate(chr, mutate_rate)
+            # 8 Update population (Replace the entire population by the child chromosomes as the parent generation)
             self.population = elite_list + children_list
-            # 6. evaluate fitness value
-            self.fitnesses = [objective_func(self.population[idx].genes) for idx in range(len(self.population))]
-            #print(min(self.fitnesses))
-            # 7. update roulette
-            self.upadte_roulette()
-            # 8. Check termination condition
-            if best_fitness > min(self.fitnesses):
-                best_fitness = min(self.fitnesses)
-                not_improve_cnt = 0
-            else:
-                not_improve_cnt += 1
+
+            # Record evolution round count
             round_cnt += 1
-            if not_improve_cnt > 100:
-                break
+            
         #print(round_cnt)

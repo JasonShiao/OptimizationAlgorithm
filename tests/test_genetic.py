@@ -64,6 +64,26 @@ class TestGeneticAlgorithmMethods(unittest.TestCase):
     def test_crossover(self):
         pass
     
+    def test_mutation(self):
+        n_dim = 2
+        encoder = GrayCodeEncoder([0, 0], [100, 100], [8] * n_dim, n_dim)
+        print(encoder.decode([255, 255]))
+        print(encoder.decode([0, 0]))
+        print(encoder.decode([128, 128]))
+        chr = Chromosome([0 for i in range(2)], encoder)
+        ga_optimizer = GA()
+        self.assertEqual(chr.genes, [0, 0])
+        self.assertEqual(chr.encoded_genes, [0, 0])
+        ga_optimizer.mutate(chr, 0.0) # no bit mutated
+        self.assertEqual(chr.genes, [0, 0])
+        self.assertEqual(chr.encoded_genes, [0, 0])
+        ga_optimizer.mutate(chr, 1.0) # mutate all bits
+        # Note: 255 = 0b11111111 is not mapped to max value in graycode encoding
+        self.assertIs(len(chr.genes), 2)
+        self.assertAlmostEqual(chr.genes[0], 66.6667, delta = 0.1)
+        self.assertAlmostEqual(chr.genes[1], 66.6667, delta = 0.1)
+
+
     def test_upadte_roulette(self):
         pass
     
@@ -71,7 +91,7 @@ class TestGeneticAlgorithmMethods(unittest.TestCase):
         print('test_optimize')
         init_populations = [Chromosome(point, self.encoder) for point in self.init_points]
         ga_optimizer = GA()
-        ga_optimizer.optimize(self.func1, init_populations, n_dim=self.n_dim)
+        ga_optimizer.optimize(self.func1, init_populations)
         pass
 
 if __name__ == '__main__':
