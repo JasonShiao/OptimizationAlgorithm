@@ -1,51 +1,28 @@
 import numpy as np
-# The first ant heuristic algorithm
+from typing import Tuple
 
 class Ant:
     def __init__(self, n_pos, init_pos):
         self.current_pos = init_pos
         self.n_pos = n_pos
-        self.unvisited_pos = np.ones(n_pos, dtype=bool)
-        self.unvisited_pos[self.current_pos] = False
+        self.path = [] # same as tabu list
+        self.path.append(self.current_pos)
+        self.move_distance = 0
+
+    def complete(self):
+        return len(self.path) == self.n_pos
+    
+    def release_memory(self):
+        """Release memory of path but keep the init position
+        """
+        self.current_pos = self.path[0]
         self.path = []
         self.path.append(self.current_pos)
         self.move_distance = 0
 
-    def move(self, heuristic_info: np.ndarray, pheromone: np.ndarray, alpha: float, beta: float):
-        """_summary_
-
-        Args:
-            heuristic_info (np.ndarray): _description_
-            pheromone (np.ndarray): _description_
-            alpha (float): _description_
-            beta (float): _description_
-
-        Returns:
-            (last_pos, new_pos): the route of the movement
-        """
-        
-        #if self.complete:
-        #    raise ValueError("All positions have been visited")
-        # Calculate transition probability vector (1-d array) with size = n_pos
-        p = np.zeros(self.n_pos)
-        #for unvisited_pos in self.unvisited_pos:
-        for i in range(self.n_pos):
-            if self.unvisited_pos[i]:
-                p[i] = (pheromone[self.current_pos][i] ** alpha) * (heuristic_info[self.current_pos][i] ** beta)
-        # normalize (make sum = 1)
-        p = p / np.sum(p)
-        # Select next position by roulette wheel
-        next_pos = np.random.choice(np.arange(self.n_pos), p=p)
-        last_pos = self.current_pos
-        self.current_pos = next_pos
-        self.path.append(self.current_pos)
-        self.unvisited_pos[self.current_pos] = False
-        self.move_distance += heuristic_info[last_pos][self.current_pos]
-        return (last_pos, self.current_pos)
-
 class AntSystem:
     """ 
-        Ant System algorithm proposed by Dorigo in 1992
+        Ant System algorithm proposed by Dorigo et al. in 1992, An Investigation of some Properties of an "Ant Algorithm"
         
     """
     def __init__(self, rho, alpha, beta):
@@ -60,44 +37,96 @@ class AntSystem:
         self.alpha = alpha
         self.beta = beta
     
-    def optimize(self, n_ant: int, n_iter: int, heuristic_info: np.ndarray, Q, init_pheromone: np.ndarray, init_pos: np.ndarray):
+    def move(self, ant: Ant, heuristic_info: np.ndarray, pheromone: np.ndarray, alpha: float, beta: float, distance_matrix: np.ndarray):
+        if ant.complete():
+            raise ValueError("All positions have been visited")
+        # Calculate transition probability vector (1-d array) with size = n_pos
+        p = np.zeros(ant.n_pos)
+        for j in range(ant.n_pos):
+            if j not in ant.path:
+                p[j] = (pheromone[ant.current_pos][j] ** alpha) * (heuristic_info[ant.current_pos][j] ** beta)
+        # normalize (make sum = 1)
+        #print(p)
+        p = p / np.sum(p)
+        # Select next position by roulette wheel
+        next_pos = np.random.choice(np.arange(ant.n_pos), p=p)
+        last_pos = ant.current_pos
+        ant.current_pos = next_pos
+        ant.path.append(ant.current_pos)
+        ant.move_distance += (distance_matrix[last_pos][ant.current_pos])
+        return ant.current_pos
+    
+    def optimize(self, n_ant: int, n_iter: int, distance_matrix: np.ndarray, Q, init_pheromone: np.ndarray):
         """_summary_
 
         Args:
-            heuristic_info (_type_): _description_
+            distance_matrix (_type_): _description_
             Q (_type_): pheromone constant
             init_pheromone (_type_): initial pheromone state
             init_pos (_type_): initial position of ants
         """
         # Validate input
-        if heuristic_info.shape[0] != heuristic_info.shape[1]:
+        if distance_matrix.shape[0] != distance_matrix.shape[1]:
             raise ValueError("Heuristic info must be a square matrix")
-        if heuristic_info.shape != init_pheromone.shape:
+        if distance_matrix.shape != init_pheromone.shape:
             raise ValueError("Heuristic info and init_pheromone must have the same shape")
-        if init_pos.shape[0] != n_ant:
-            raise ValueError("init_pos must have n_ant rows")
         # Initialize pheromone
         pheromone = init_pheromone
-        n_pos = heuristic_info.shape[0]
-        best_path = []
-        best_distance = np.inf
+        heuristic_info = 1 / distance_matrix
+        n_pos = distance_matrix.shape[0] # number of nodes (positions)
+        history_best_path = []
+        history_best_distance = np.inf
+        ants: list[Ant] = []
+        nodes = [[] for i in range(n_pos)] # nodes[i][k] is the k-th ant index at node i (i.e. len(nodes[i]) = b_i in original paper)
+        # Init pos (node) for each ant
+        for i in range(n_ant):
+            # randomly choose the start node
+            start_node = np.random.choice(np.arange(n_pos))
+            nodes[start_node].append(i)
+            # Initialize ant
+            ants.append(Ant(n_pos, start_node))
         for i in range(n_iter):
-            # Initialize ants
-            ants = [Ant(heuristic_info.shape[0], init_pos[i]) for i in range(n_ant)]
-            while sum(ants[0].unvisited_pos) > 0:
-                # init delta_pheromone for each step
-                sum_delta_pheromone = np.zeros(heuristic_info.shape)
-                for k in range(n_ant):
-                    # Move each ant
-                    route_start, routte_dest = ants[k].move(heuristic_info, pheromone, self.alpha, self.beta)
-                    # Accumulate delta_pheromone (Ant-Quantity mode)
-                    sum_delta_pheromone[route_start][routte_dest] += Q / heuristic_info[route_start][routte_dest]
-                # Update pheromone matrix
-                pheromone = (1 - self.rho) * pheromone + sum_delta_pheromone
+            # Init delta_pheromone for each iteration
+            sum_delta_pheromone = np.zeros(heuristic_info.shape)
+            while True:
+                # State transition
+                next_step_nodes = [[] for i in range(n_pos)]
+                for depart_node_idx in range(len(nodes)):
+                    for ant_idx in nodes[depart_node_idx]:
+                        # Move each ant
+                        self.move(ants[ant_idx], heuristic_info, pheromone, self.alpha, self.beta, distance_matrix)
+                        next_step_nodes[ants[ant_idx].current_pos].append(ant_idx)
+                        # TODO: Select mode (Ant-Density or Ant-Quantity)
+                        # 1. Accumulate delta_pheromone (with Ant-Density mode)
+                        #sum_delta_pheromone[depart_node_idx][dest_node_idx] += Q 
+                        # 2. Accumulate delta_pheromone (Ant-Quantity mode)
+                        sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q / distance_matrix[depart_node_idx][ants[ant_idx].current_pos]
+                # Update nodes with new position of ants
+                nodes = next_step_nodes
+                # Check if ant has completed the route
+                if ants[0].complete():
+                    break
+            # Compute the distance of the route
+            # Already accumulated distance of most paths in the move function, 
+            # only need to add the path from the last node to the start node
+            # TODO:
+            for ant in ants:
+                ant.move_distance += distance_matrix[ant.path[-1]][ant.path[0]]
+                ant.path.append(ant.path[0])
+            # For Ant-Cycle mode, accumulate delta pheromone and divide by the distance of the complete route
+            # TODO:
+            #for ant in ants:
+            #    for i in range(len(ant.path) - 1):
+            #        sum_delta_pheromone[ant.path[i]][ant.path[i + 1]] += Q / ant.move_distance
+            # Update pheromone matrix
+            pheromone = (1 - self.rho) * pheromone + sum_delta_pheromone
             # The shortest route of this iteration
             best_ant = min(ants, key=lambda ant: ant.move_distance)
-            if best_ant.move_distance < best_distance:
-                best_distance = best_ant.move_distance
-                best_path = best_ant.path
-            print(f"Best route of iteration {i} is {best_ant.path} with distance {best_ant.move_distance}, history best distance = {best_distance}")
-        return best_path, best_distance
+            if best_ant.move_distance < history_best_distance:
+                history_best_distance = best_ant.move_distance
+                history_best_path = best_ant.path
+            print(f"Best route of iteration {i} is {best_ant.path} with distance {best_ant.move_distance}, history best distance = {history_best_distance}, history best path = {history_best_path}")
+            # Reset ant for new iteration (release memory)
+            for ant in ants:
+                ant.release_memory()
+        return history_best_path, history_best_distance
