@@ -1,5 +1,12 @@
 import numpy as np
-from typing import Tuple
+from enum import Enum
+import argparse
+
+
+class AntMode(Enum):
+    AntQuantity = 'quantity'
+    AntDensity = 'density'
+    AntCycle = 'cycle'
 
 class Ant:
     def __init__(self, n_pos, init_pos):
@@ -41,10 +48,15 @@ class AntSystem:
         if ant.complete():
             raise ValueError("All positions have been visited")
         # Calculate transition probability vector (1-d array) with size = n_pos
-        p = np.zeros(ant.n_pos)
-        for j in range(ant.n_pos):
-            if j not in ant.path:
-                p[j] = (pheromone[ant.current_pos][j] ** alpha) * (heuristic_info[ant.current_pos][j] ** beta)
+        # Initial version
+        #p = np.zeros(ant.n_pos)
+        #for j in range(ant.n_pos):
+        #    if j not in ant.path:
+        #        p[j] = (pheromone[ant.current_pos][j] ** alpha) * (heuristic_info[ant.current_pos][j] ** beta)
+        # Vectorized version
+        p = (pheromone[ant.current_pos] ** alpha) * (heuristic_info[ant.current_pos] ** beta)
+        p[ant.path] = 0  # Set probabilities for visited positions to 0
+        #p = p / np.sum(p)
         # normalize (make sum = 1)
         #print(p)
         p = p / np.sum(p)
@@ -56,7 +68,7 @@ class AntSystem:
         ant.move_distance += (distance_matrix[last_pos][ant.current_pos])
         return ant.current_pos
     
-    def optimize(self, n_ant: int, n_iter: int, distance_matrix: np.ndarray, Q, init_pheromone: np.ndarray):
+    def optimize(self, n_ant: int, n_iter: int, distance_matrix: np.ndarray, Q: float, mode: AntMode = AntMode.AntQuantity):
         """_summary_
 
         Args:
@@ -68,12 +80,10 @@ class AntSystem:
         # Validate input
         if distance_matrix.shape[0] != distance_matrix.shape[1]:
             raise ValueError("Heuristic info must be a square matrix")
-        if distance_matrix.shape != init_pheromone.shape:
-            raise ValueError("Heuristic info and init_pheromone must have the same shape")
-        # Initialize pheromone
-        pheromone = init_pheromone
         heuristic_info = 1 / distance_matrix
         n_pos = distance_matrix.shape[0] # number of nodes (positions)
+        # Initialize pheromone
+        pheromone = np.ones(distance_matrix.shape)
         history_best_path = []
         history_best_distance = np.inf
         ants: list[Ant] = []
@@ -96,28 +106,29 @@ class AntSystem:
                         # Move each ant
                         self.move(ants[ant_idx], heuristic_info, pheromone, self.alpha, self.beta, distance_matrix)
                         next_step_nodes[ants[ant_idx].current_pos].append(ant_idx)
-                        # TODO: Select mode (Ant-Density or Ant-Quantity)
-                        # 1. Accumulate delta_pheromone (with Ant-Density mode)
-                        #sum_delta_pheromone[depart_node_idx][dest_node_idx] += Q 
-                        # 2. Accumulate delta_pheromone (Ant-Quantity mode)
-                        sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q / distance_matrix[depart_node_idx][ants[ant_idx].current_pos]
+                        if mode == AntMode.AntDensity:
+                            # 1. Accumulate delta_pheromone (with Ant-Density mode)
+                            sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q
+                        elif mode == AntMode.AntQuantity:
+                            sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q / distance_matrix[depart_node_idx][ants[ant_idx].current_pos]
+                        else:
+                            pass # Ant-Cycle mode does not accumulate delta pheromone here
                 # Update nodes with new position of ants
                 nodes = next_step_nodes
                 # Check if ant has completed the route
                 if ants[0].complete():
                     break
-            # Compute the distance of the route
-            # Already accumulated distance of most paths in the move function, 
-            # only need to add the path from the last node to the start node
-            # TODO:
+            # Compute the distance of the route:
+            #   Already accumulated distance of most paths in the move function, 
+            #   only need to add the path from the last node to the start node
             for ant in ants:
                 ant.move_distance += distance_matrix[ant.path[-1]][ant.path[0]]
                 ant.path.append(ant.path[0])
             # For Ant-Cycle mode, accumulate delta pheromone and divide by the distance of the complete route
-            # TODO:
-            #for ant in ants:
-            #    for i in range(len(ant.path) - 1):
-            #        sum_delta_pheromone[ant.path[i]][ant.path[i + 1]] += Q / ant.move_distance
+            if mode == AntMode.AntCycle:
+                for ant in ants:
+                    for i in range(len(ant.path) - 1):
+                        sum_delta_pheromone[ant.path[i]][ant.path[i + 1]] += Q / ant.move_distance
             # Update pheromone matrix
             pheromone = (1 - self.rho) * pheromone + sum_delta_pheromone
             # The shortest route of this iteration
