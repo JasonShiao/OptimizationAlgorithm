@@ -1,6 +1,6 @@
 import numpy as np
 import re
-from metaheuristic.ant_system import AntSystem, AntMode
+from metaheuristic.ant_system import AntSystem, AntSystemMode, AntSystemOptions
 import argparse
 
 def generate_distance_matrix(size):
@@ -15,17 +15,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process data based on mode.')
     
     # Define the --mode argument with choices
-    parser.add_argument('--mode', choices=[mode.value for mode in AntMode],
+    parser.add_argument('--mode', choices=[mode.value for mode in AntSystemMode],
                         help='Specify the processing mode (density, quantity, cycle)', required=True)
     args = parser.parse_args()
 
     mode_str = args.mode
-    mode = AntMode(mode_str)
-    if mode == AntMode.AntDensity:
+    mode = AntSystemMode(mode_str)
+    if mode == AntSystemMode.AntDensity:
         print('Processing in density mode...')
-    elif mode == AntMode.AntQuantity:
+    elif mode == AntSystemMode.AntQuantity:
         print('Processing in quantity mode...')
-    elif mode == AntMode.AntCycle:
+    elif mode == AntSystemMode.AntCycle:
         print('Processing in cycle mode...')
     else:
         print('Invalid mode selected.')
@@ -38,6 +38,7 @@ if __name__ == "__main__":
     distance_matrix = np.array(matrix_element_list).reshape((matrix_size, matrix_size))
     
     n_ant = 300
-    as_algo = AntSystem(0.05, 1, 1)
-    as_algo.optimize(n_ant, 1000, distance_matrix, 5)
+    options = AntSystemOptions(AntSystemMode.AntCycle, n_ant, 100, 0.05, 1, 1)
+    as_algo = AntSystem(options)
+    as_algo.optimize(distance_matrix)
 
