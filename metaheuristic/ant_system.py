@@ -19,6 +19,11 @@ class Ant:
     def complete(self):
         return len(self.path) == self.n_pos
     
+    def move(self, next_pos, distance):
+        self.path.append(next_pos)
+        self.move_distance += distance
+        self.current_pos = next_pos
+    
     def release_memory(self):
         """Release memory of path but keep the init position
         """
@@ -43,29 +48,20 @@ class AntSystem:
         self.rho = rho
         self.alpha = alpha
         self.beta = beta
+        self.rng = np.random.default_rng()
+
     
-    def move(self, ant: Ant, heuristic_info: np.ndarray, pheromone: np.ndarray, alpha: float, beta: float, distance_matrix: np.ndarray):
+    def move(self, ant: Ant, prob_vector: np.ndarray, distance_matrix: np.ndarray):
         if ant.complete():
             raise ValueError("All positions have been visited")
-        # Calculate transition probability vector (1-d array) with size = n_pos
-        # Initial version
-        #p = np.zeros(ant.n_pos)
-        #for j in range(ant.n_pos):
-        #    if j not in ant.path:
-        #        p[j] = (pheromone[ant.current_pos][j] ** alpha) * (heuristic_info[ant.current_pos][j] ** beta)
-        # Vectorized version
-        p = (pheromone[ant.current_pos] ** alpha) * (heuristic_info[ant.current_pos] ** beta)
-        p[ant.path] = 0  # Set probabilities for visited positions to 0
-        #p = p / np.sum(p)
-        # normalize (make sum = 1)
-        #print(p)
-        p = p / np.sum(p)
+        # Apply tabu list
+        prob_vector[ant.path] = 0  # Set probabilities for visited positions to 0
+        normalized_prob_vector = prob_vector / np.sum(prob_vector)
         # Select next position by roulette wheel
-        next_pos = np.random.choice(np.arange(ant.n_pos), p=p)
-        last_pos = ant.current_pos
-        ant.current_pos = next_pos
-        ant.path.append(ant.current_pos)
-        ant.move_distance += (distance_matrix[last_pos][ant.current_pos])
+        #next_pos = np.random.choice(np.arange(ant.n_pos), p=prob_vector)
+        # TODO: Use cumulative sum to speed up (roulette wheel selection)
+        next_pos = self.rng.choice(np.arange(ant.n_pos), p = normalized_prob_vector)
+        ant.move(next_pos, distance_matrix[ant.current_pos][next_pos])
         return ant.current_pos
     
     def optimize(self, n_ant: int, n_iter: int, distance_matrix: np.ndarray, Q: float, mode: AntMode = AntMode.AntQuantity):
@@ -81,6 +77,7 @@ class AntSystem:
         if distance_matrix.shape[0] != distance_matrix.shape[1]:
             raise ValueError("Heuristic info must be a square matrix")
         heuristic_info = 1 / distance_matrix
+        np.fill_diagonal(heuristic_info, 0) # Handle division by 0
         n_pos = distance_matrix.shape[0] # number of nodes (positions)
         # Initialize pheromone
         pheromone = np.ones(distance_matrix.shape)
@@ -102,15 +99,17 @@ class AntSystem:
                 # State transition
                 next_step_nodes = [[] for i in range(n_pos)]
                 for depart_node_idx in range(len(nodes)):
+                    # Calculate transition probability for the node (city) (Not apply tabu list for each ant here yet)
+                    p: np.ndarray = (pheromone[depart_node_idx] ** self.alpha) * (heuristic_info[depart_node_idx] ** self.beta)
                     for ant_idx in nodes[depart_node_idx]:
                         # Move each ant
-                        self.move(ants[ant_idx], heuristic_info, pheromone, self.alpha, self.beta, distance_matrix)
+                        new_node_idx = self.move(ants[ant_idx], p.copy(), distance_matrix)
                         next_step_nodes[ants[ant_idx].current_pos].append(ant_idx)
                         if mode == AntMode.AntDensity:
                             # 1. Accumulate delta_pheromone (with Ant-Density mode)
-                            sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q
+                            sum_delta_pheromone[depart_node_idx][new_node_idx] += Q
                         elif mode == AntMode.AntQuantity:
-                            sum_delta_pheromone[depart_node_idx][ants[ant_idx].current_pos] += Q / distance_matrix[depart_node_idx][ants[ant_idx].current_pos]
+                            sum_delta_pheromone[depart_node_idx][new_node_idx] += Q / distance_matrix[depart_node_idx][new_node_idx]
                         else:
                             pass # Ant-Cycle mode does not accumulate delta pheromone here
                 # Update nodes with new position of ants
