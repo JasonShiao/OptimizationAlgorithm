@@ -85,6 +85,12 @@ def sma_example(args):
         if args.bf in bf_name_list:
             bf_class = getattr(bf, args.bf)
             obj_func = bf_class(dim)
+            if obj_func.minimum() == None:
+                print(f"The dimension {dim} is not supported by {args.bf}, use default dimension {obj_func.n_dimensions()}")
+                obj_func = bf_class()
+                dim = obj_func.n_dimensions()
+            if obj_func.minimum() == None:
+                raise ValueError(f"Unable to create benchmark function {args.bf}")
             lb, ub = obj_func.suggested_bounds()
             problem_size = dim
         else:
@@ -93,6 +99,9 @@ def sma_example(args):
         verbose = True
         epoch = 1000
         pop_size = 50
+    
+    # Known minimum:
+    print(f"Known minimum value: {obj_func.minimum().score}")
 
     md1 = BaseSMA(obj_func, lb, ub, problem_size, verbose, epoch, pop_size)
     best_pos1, best_fit1, list_loss1 = md1.train()
