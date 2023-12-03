@@ -12,8 +12,12 @@ poetry run run_aco_example -h # See input options
 poetry run run_aco_example --mode 'cycle' --problem 'gr17'
 
 poetry run run_sma_example -h # See input options
-poetry run run_sma_example # default Ackley function
-poetry run run_sma_example --bf Schwefel --dim 10'
+poetry run run_sma_example --bf Ackley --dim 10
+poetry run run_sma_example --bf Schwefel --dim 10
+
+poetry run run_sma_example -h # See input options
+poetry run run_sma_example --bf Ackley --dim 10
+poetry run run_sma_example --bf Schwefel --dim 10
 ```
 
 
