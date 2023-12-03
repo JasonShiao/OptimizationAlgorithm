@@ -1,5 +1,5 @@
 import argparse
-from optimization.example.tsp_example import tsp_example
+from optimization.example.aco_example import tsp_example
 from optimization.metaheuristic.ant_system import AntSystemVariant    
     
 

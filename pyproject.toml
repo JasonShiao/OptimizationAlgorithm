@@ -7,7 +7,8 @@ readme = "README.md"
 include = ["data/**/*"]
 
 [tool.poetry.scripts]
-run_example = "optimization.bin.run_example:main"
+run_aco_example = "optimization.bin.run_aco_example:main"
+run_sma_example = "optimization.bin.run_sma_example:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"

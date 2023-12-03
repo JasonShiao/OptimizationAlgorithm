@@ -36,13 +36,12 @@
 #             Researchgate: Huiling Chen https://www.researchgate.net/profile/Huiling_Chen
 # ------------------------------------------------------------------------------------------------------------
 
-from SMA import BaseSMA, OriginalSMA
+# More details on the imported benchmark functions:
+#   https://gitlab.com/luca.baronti/python_benchmark_functions
+
+from optimization.third_party.slime_mold_algorithm.SMA import BaseSMA, OriginalSMA
 from numpy import sum, pi, exp, sqrt, cos
-
-
-## You can create whatever function you want here
-def func_sum(solution):
-    return sum(solution ** 2)
+import benchmark_functions as bf
 
 
 def func_ackley(solution):
@@ -53,36 +52,59 @@ def func_ackley(solution):
     return sum_1 - sum_2 + a + exp(1)
 
 
-## You can create different bound for each dimension like this
-# lb = [-15, -10, -3, -15, -10, -3, -15, -10, -3, -15, -10, -3, -15, -10, -3, -100, -40, -50]
-# ub = [15, 10, 3, 15, 10, 3, 15, 10, 3, 15, 10, 3, 15, 10, 3, 20, 200, 1000]
-# problem_size = 18
-## if you choose this way, the problem_size need to be same length as lb and ub
+def sma_example(args):
+    # Determine benchmark function, dimension and bounds
+    if args == None or not hasattr(args, 'bf') or args.bf == None: # Use default simple example
+        ## You can create different bound for each dimension like this
+        # lb = [-15, -10, -3, -15, -10, -3, -15, -10, -3, -15, -10, -3, -15, -10, -3, -100, -40, -50]
+        # ub = [15, 10, 3, 15, 10, 3, 15, 10, 3, 15, 10, 3, 15, 10, 3, 20, 200, 1000]
+        # problem_size = 18
+        ## if you choose this way, the problem_size need to be same length as lb and ub
 
-## Or bound is the same for all dimension like this
-lb = [-100]
-ub = [100]
-problem_size = 100
-## if you choose this way, the problem_size can be anything you want
+        ## Or bound is the same for all dimension like this
+        lb = [-100]
+        ub = [100]
+        problem_size = 100
+        ## if you choose this way, the problem_size can be anything you want
 
+        ## Setting parameters
+        obj_func = func_ackley
+        verbose = True
+        epoch = 1000
+        pop_size = 50
+    else:
+        if not hasattr(args, 'dim'):
+            dim = 10
+        else:
+            dim = args.dim
+        bf_name_list = ['Hypersphere', 'Hyperellipsoid', 'Schwefel', 'Ackley', 'Michalewicz',
+                        'Rastrigin', 'Rosenbrock', 'DeJong3', 'DeJong5', 'MartinGaddy',
+                        'Griewank', 'Easom', 'GoldsteinAndPrice', 'PichenyGoldsteinAndPrice',
+                        'StyblinskiTang', 'McCormick', 'Rana', 'EggHolder', 'Keane',
+                        'Schaffer2', 'Himmelblau', 'PitsAndHoles']
+        if args.bf in bf_name_list:
+            bf_class = getattr(bf, args.bf)
+            obj_func = bf_class(dim)
+            lb, ub = obj_func.suggested_bounds()
+            problem_size = dim
+        else:
+            raise ValueError(f"Invalid benchmark function name {args.bf}, \
+                             valid benchmark func names are {bf_name_list}")  
+        verbose = True
+        epoch = 1000
+        pop_size = 50
 
-## Setting parameters
-obj_func = func_ackley
-verbose = True
-epoch = 1000
-pop_size = 50
+    md1 = BaseSMA(obj_func, lb, ub, problem_size, verbose, epoch, pop_size)
+    best_pos1, best_fit1, list_loss1 = md1.train()
+    # return : the global best solution, the fitness of global best solution and the loss of training process in each epoch/iteration
+    if md1.solution is not None:
+        print(md1.solution[0])
+        print(md1.solution[1])
+    print(md1.loss_train)
 
-md1 = BaseSMA(obj_func, lb, ub, problem_size, verbose, epoch, pop_size)
-best_pos1, best_fit1, list_loss1 = md1.train()
-# return : the global best solution, the fitness of global best solution and the loss of training process in each epoch/iteration
-if md1.solution is not None:
-    print(md1.solution[0])
-    print(md1.solution[1])
-print(md1.loss_train)
-
-md2 = OriginalSMA(obj_func, lb, ub, problem_size, verbose, epoch, pop_size)
-best_pos2, best_fit2, list_loss2 = md2.train()
-# return : the global best solution, the fitness of global best solution and the loss of training process in each epoch/iteration
-print(best_pos2)
-print(best_fit2)
-print(list_loss2)
+    md2 = OriginalSMA(obj_func, lb, ub, problem_size, verbose, epoch, pop_size)
+    best_pos2, best_fit2, list_loss2 = md2.train()
+    # return : the global best solution, the fitness of global best solution and the loss of training process in each epoch/iteration
+    print(best_pos2)
+    print(best_fit2)
+    print(list_loss2)

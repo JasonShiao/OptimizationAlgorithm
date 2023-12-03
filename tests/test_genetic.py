@@ -1,5 +1,5 @@
 import unittest
-from metaheuristic.genetic import bitwise_not, Encoder, GrayCodeEncoder, Chromosome, GA
+from optimization.metaheuristic.genetic import bitwise_not, Encoder, GrayCodeEncoder, Chromosome, GA
 import benchmark_functions as bf
 
 def gen_grid_points(min, max, n_cut):
