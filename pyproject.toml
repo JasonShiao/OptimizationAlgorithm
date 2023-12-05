@@ -10,7 +10,7 @@ include = ["data/**/*"]
 run_aco_example = "optimization.bin.run_aco_example:main"
 run_sma_example = "optimization.bin.run_sma_example:main"
 run_pso_example = "optimization.bin.run_pso_example:main"
-
+run_sa_example = "optimization.bin.run_sa_example:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
