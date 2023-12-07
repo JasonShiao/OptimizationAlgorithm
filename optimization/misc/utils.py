@@ -1,0 +1,113 @@
+import gzip
+import tsplib95
+import pkg_resources
+import numpy as np
+
+def unzip_and_parse_gz(file_path):
+    with gzip.open(file_path, 'rt', encoding='utf-8') as gz_file:
+        # Read the content of the uncompressed file into a string
+        content = gz_file.read()
+        return content
+
+def tsplib95_get(problem_name):
+    """
+        Ref: http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp95.pdf
+        The problem set has been copied into the data folder of this package
+        if problem_name.tsp.gz exists, read it and return problem
+        if problem_name.opt.tour.gz exists, read it and return optimal tour
+
+    Args:
+        problem_name (_type_): _description_
+    
+    Returns:
+        (problem, optimal): _description_
+    """
+    tsplib95_problem_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/tsp/{problem_name}")
+    problem = None
+    optimal_sol = None
+    try:
+        with gzip.open(f"{tsplib95_problem_path}.tsp.gz", 'rt', encoding='utf-8') as gz_file:
+            content = gz_file.read()
+            problem = tsplib95.parse(content)
+        with gzip.open(f"{tsplib95_problem_path}.opt.tour.gz", 'rt', encoding='utf-8') as gz_file:
+            content = gz_file.read()
+            optimal_sol = tsplib95.parse(content)
+    except FileNotFoundError:
+        if problem == None:
+            print(f"{problem_name} not found in TSPLIB95 problem set")
+            raise FileNotFoundError
+        else:
+            print(f"Official solution for {problem_name} not found in TSPLIB95 problem set")
+    
+    return problem, optimal_sol
+    
+def get_weight_matrix_from_tsplib(problem: tsplib95.models.StandardProblem):
+    """
+        Get the weight matrix from the tsplib95.models.StandardProblem object
+
+    Args:
+        problem (tsplib95.models.StandardProblem): _description_
+    
+    Returns:
+        _type_: _description_
+    """
+    if problem.is_explicit():
+        if problem.is_complete():
+            # Extract weight matrix format and data
+            weight_format = problem.edge_weight_format
+            weight_data: list = problem.as_name_dict()['edge_weights']
+            weight_data_1d = np.array([item for sublist in weight_data for item in sublist])
+
+            # Determine the number of nodes
+            num_nodes: int = problem.as_name_dict()['dimension']
+
+            # Convert weight matrix format to full matrix
+            if weight_format == 'FULL_MATRIX':
+                # If the format is already full matrix, use it directly
+                weight_matrix = weight_data_1d.reshape((num_nodes, num_nodes))
+            elif weight_format in ['UPPER_ROW', 'LOWER_COL']:
+                # If the format is upper row, convert to a full matrix
+                weight_matrix = np.zeros((num_nodes, num_nodes))
+                current_idx = 0 # index in 1-d array
+                for i in range(num_nodes-1):
+                    weight_matrix[i, (i+1):] = weight_data_1d[current_idx : (current_idx + (num_nodes - i - 1))]
+                    current_idx += (num_nodes - i - 1)
+                # From upper to full matrix
+                weight_matrix += weight_matrix.T
+            elif weight_format in ['UPPER_DIAG_ROW', 'LOWER_DIAG_COL']:
+                # If the format is upper diagonal row, convert to a full matrix
+                weight_matrix = np.zeros((num_nodes, num_nodes))
+                current_idx = 0
+                for i in range(num_nodes):
+                    weight_matrix[i, i:] = weight_data_1d[current_idx : (current_idx + (num_nodes - i))]
+                    current_idx += (num_nodes - i)
+                # From upper to full matrix
+                weight_matrix += weight_matrix.T
+            elif weight_format in ['UPPER_COL', 'LOWER_ROW']:
+                # Lower row and upper column are the same format (mirrored by diagonal)
+                weight_matrix = np.zeros((num_nodes, num_nodes))
+                current_idx = 0
+                for i in range(num_nodes-1):
+                    weight_matrix[:(i+1), i+1] = weight_data_1d[current_idx : (current_idx + i + 1)]
+                    current_idx += (i + 1)
+                # From lower to full matrix
+                weight_matrix += weight_matrix.T
+            elif weight_format in ['UPPER_DIAG_COL', 'LOWER_DIAG_ROW']:
+                # If the format is upper diagonal column, convert to a full matrix
+                weight_matrix = np.zeros((num_nodes, num_nodes))
+                current_idx = 0
+                for i in range(num_nodes):
+                    weight_matrix[:(i+1), i] = weight_data_1d[current_idx : (current_idx + i + 1)]
+                    current_idx += (i + 1)
+                # From upper to full matrix
+                weight_matrix += weight_matrix.T
+            else:
+                # Handle other formats as needed
+                raise NotImplementedError(f"Conversion for '{weight_format}' format is not implemented.")
+        else: # Incomplete graph
+            # TODO: Should apply/return tabu list
+            raise NotImplementedError("Incomplete graph is not supported")
+    else:
+        # TODO: Should calculate the weight matrix from coordinates
+        raise NotImplementedError("Implicit graph is not supported")
+    return weight_matrix
