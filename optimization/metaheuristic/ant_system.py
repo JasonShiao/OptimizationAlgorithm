@@ -77,7 +77,18 @@ class AntSystemBase:
     def move(self, ant: ArtificialAnt, prob_vector: np.ndarray, distance_matrix: np.ndarray):
         raise NotImplementedError("move() function must be implemented in subclass")
 
-    def optimize(self, distance_matrix: np.ndarray, options: AntSystemOptions):
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions):
+        """TODO: Add obj_function as input argument,
+                 if distance matrix is None, then use obj_function with pheromone only
+
+        Args:
+            dim (int): _description_
+            distance_matrix (np.ndarray): _description_
+            options (AntSystemOptions): _description_
+
+        Raises:
+            NotImplementedError: _description_
+        """
         raise NotImplementedError("optimize() function must be implemented in subclass")
 
 class AntSystem(AntSystemBase):
@@ -103,16 +114,16 @@ class AntSystem(AntSystemBase):
         ant.move(next_pos, distance_matrix[ant.current_pos][next_pos])
         return ant.current_pos
     
-    def optimize(self, distance_matrix: np.ndarray, options: AntSystemOptions):
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions):
         """_summary_
 
         Args:
             options: AntSystemOptions
         """
-        # Validate input matrix
-        if distance_matrix.shape[0] != distance_matrix.shape[1]:
-            raise ValueError("Heuristic info must be a square matrix")
-        self.n_pos = distance_matrix.shape[0] # number of nodes (positions)
+        # Validate input dim and matrix
+        if dim > distance_matrix.shape[0] or dim > distance_matrix.shape[1]:
+            raise ValueError("Distance matrix not match with the input dimension")
+        self.n_pos = dim # number of nodes (positions) = dimension
         self.distance_matrix = distance_matrix
         np.fill_diagonal(self.distance_matrix, np.inf)
         #print("distance_matrix = ", distance_matrix)

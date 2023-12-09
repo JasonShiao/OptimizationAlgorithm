@@ -117,11 +117,11 @@ class AntColonySystem(AntSystemBase):
         return next_pos
         
         
-    def optimize(self, distance_matrix: np.ndarray, options: AntColonySystemOptions):
-        # Validate input matrix
-        if distance_matrix.shape[0] != distance_matrix.shape[1]:
-            raise ValueError("Heuristic info must be a square matrix")
-        self.n_pos = distance_matrix.shape[0] # number of nodes (positions)
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntColonySystemOptions):
+        # Validate input dim and matrix
+        if dim > distance_matrix.shape[0] or dim > distance_matrix.shape[1]:
+            raise ValueError("Distance matrix not match with the input dimension")
+        self.n_pos = dim # number of nodes (positions) = dimension
         self.distance_matrix = distance_matrix
         np.fill_diagonal(self.distance_matrix, np.inf)
         #print("distance_matrix = ", distance_matrix)
