@@ -77,9 +77,9 @@ def tsp_example(args):
     #options = AntSystemOptions(AntSystemVariant.AntCycle, n_ant, 100, tau_0, 0.2, 1, 2, 1)
     #options = AntSystemOptions(AntSystemMode.AntQuantity, n_ant, 100, 0.05, 1, 2)
     #options = AntSystemOptions(AntSystemMode.AntDensity, n_ant, 100, 0.05, 1, 2)
-    as_algo = AntSystem(distance_matrix)
+    as_algo = AntSystem()
     cprofiler.enable()
-    as_algo.optimize(options)
+    as_algo.optimize(distance_matrix, options)
     cprofiler.disable()
     cprofiler.print_stats(sort='cumulative')
     

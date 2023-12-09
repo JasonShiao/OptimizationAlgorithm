@@ -61,17 +61,7 @@ class ArtificialAnt:
         self.move_distance = 0
 
 class AntSystemBase:
-    def __init__(self, distance_matrix: np.ndarray):
-        # Validate input
-        if distance_matrix.shape[0] != distance_matrix.shape[1]:
-            raise ValueError("Heuristic info must be a square matrix")
-        self.n_pos = distance_matrix.shape[0] # number of nodes (positions)
-        self.distance_matrix = distance_matrix
-        np.fill_diagonal(self.distance_matrix, np.inf)
-        #print("distance_matrix = ", distance_matrix)
-        self.heuristic_info = 1 / distance_matrix
-        #print("heuristic_info = ", self.heuristic_info)
-        np.fill_diagonal(self.heuristic_info, 0) # Handle division by 0
+    def __init__(self):
         # Initialize random number generator
         self.rng = np.random.default_rng()
         # State variables which could be reset or preserved:
@@ -87,7 +77,7 @@ class AntSystemBase:
     def move(self, ant: ArtificialAnt, prob_vector: np.ndarray, distance_matrix: np.ndarray):
         raise NotImplementedError("move() function must be implemented in subclass")
 
-    def optimize(self, options: AntSystemOptions):
+    def optimize(self, distance_matrix: np.ndarray, options: AntSystemOptions):
         raise NotImplementedError("optimize() function must be implemented in subclass")
 
 class AntSystem(AntSystemBase):
@@ -96,8 +86,8 @@ class AntSystem(AntSystemBase):
         
         This class is used to solve simple TSP problems (with a distance matrix)
     """
-    def __init__(self, distance_matrix: np.ndarray):
-        super().__init__(distance_matrix)
+    def __init__(self):
+        super().__init__()
     
     def move(self, ant: ArtificialAnt, prob_vector: np.ndarray, distance_matrix: np.ndarray):
         if ant.complete():
@@ -113,13 +103,23 @@ class AntSystem(AntSystemBase):
         ant.move(next_pos, distance_matrix[ant.current_pos][next_pos])
         return ant.current_pos
     
-    def optimize(self, options: AntSystemOptions):
+    def optimize(self, distance_matrix: np.ndarray, options: AntSystemOptions):
         """_summary_
 
         Args:
             options: AntSystemOptions
         """
-        # Validate input
+        # Validate input matrix
+        if distance_matrix.shape[0] != distance_matrix.shape[1]:
+            raise ValueError("Heuristic info must be a square matrix")
+        self.n_pos = distance_matrix.shape[0] # number of nodes (positions)
+        self.distance_matrix = distance_matrix
+        np.fill_diagonal(self.distance_matrix, np.inf)
+        #print("distance_matrix = ", distance_matrix)
+        self.heuristic_info = 1 / distance_matrix
+        #print("heuristic_info = ", self.heuristic_info)
+        np.fill_diagonal(self.heuristic_info, 0) # Handle division by 0
+        # Validate input options
         if options.algo_variant not in [AntSystemVariant.AntCycle, AntSystemVariant.AntQuantity, AntSystemVariant.AntDensity]:
             raise ValueError("Invalid algorithm variant for AS instance")
         self.options = options

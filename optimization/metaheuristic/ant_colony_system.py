@@ -75,8 +75,8 @@ class AntColonySystem(AntSystemBase):
                 for city outside the list, it will only be chosen if all cities in the candidate list have been visited
         
     """
-    def __init__(self, distance_matrix: np.ndarray):
-        super().__init__(distance_matrix)
+    def __init__(self):
+        super().__init__()
     
     def move(self, ant: ArtificialAnt, next_pos: int, distance_matrix: np.ndarray):
         pass
@@ -117,7 +117,19 @@ class AntColonySystem(AntSystemBase):
         return next_pos
         
         
-    def optimize(self, options: AntColonySystemOptions):
+    def optimize(self, distance_matrix: np.ndarray, options: AntColonySystemOptions):
+        # Validate input matrix
+        if distance_matrix.shape[0] != distance_matrix.shape[1]:
+            raise ValueError("Heuristic info must be a square matrix")
+        self.n_pos = distance_matrix.shape[0] # number of nodes (positions)
+        self.distance_matrix = distance_matrix
+        np.fill_diagonal(self.distance_matrix, np.inf)
+        #print("distance_matrix = ", distance_matrix)
+        self.heuristic_info = 1 / distance_matrix
+        #print("heuristic_info = ", self.heuristic_info)
+        np.fill_diagonal(self.heuristic_info, 0) # Handle division by 0
+        
+        # Validate input options
         if options.algo_variant != AntSystemVariant.AntColonySystem:
             raise ValueError("Invalid variant for Ant Colony System")
         self.options = options
