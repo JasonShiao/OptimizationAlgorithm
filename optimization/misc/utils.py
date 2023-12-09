@@ -2,6 +2,7 @@ import gzip
 import tsplib95
 import pkg_resources
 import numpy as np
+from enum import Enum
 
 def unzip_and_parse_gz(file_path):
     with gzip.open(file_path, 'rt', encoding='utf-8') as gz_file:
@@ -9,7 +10,14 @@ def unzip_and_parse_gz(file_path):
         content = gz_file.read()
         return content
 
-def tsplib95_get(problem_name):
+class TSPLIB95Category(Enum):
+    TSP = 'tsp' # Symmetric TSP
+    ATSP = 'atsp'
+    HCP = 'hcp'
+    CVRP = 'vrp'
+    SOP = 'sop'
+
+def tsplib95_get(category: TSPLIB95Category, problem_name: str):
     """
         Ref: http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp95.pdf
         The problem set has been copied into the data folder of this package
@@ -22,22 +30,23 @@ def tsplib95_get(problem_name):
     Returns:
         (problem, optimal): _description_
     """
-    tsplib95_problem_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/tsp/{problem_name}")
+    problem_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/{category.value}/{problem_name}.gz")
+    solution_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/{category.value}/{problem_name}.opt.tour.gz")
     problem = None
     optimal_sol = None
     try:
-        with gzip.open(f"{tsplib95_problem_path}.tsp.gz", 'rt', encoding='utf-8') as gz_file:
+        with gzip.open(problem_path, 'rt', encoding='utf-8') as gz_file:
             content = gz_file.read()
             problem = tsplib95.parse(content)
-        with gzip.open(f"{tsplib95_problem_path}.opt.tour.gz", 'rt', encoding='utf-8') as gz_file:
+        with gzip.open(solution_path, 'rt', encoding='utf-8') as gz_file:
             content = gz_file.read()
             optimal_sol = tsplib95.parse(content)
     except FileNotFoundError:
         if problem == None:
-            print(f"{problem_name} not found in TSPLIB95 problem set")
+            print(f"Error: {problem_name} not found in TSPLIB95 problem set")
             raise FileNotFoundError
         else:
-            print(f"Official solution for {problem_name} not found in TSPLIB95 problem set")
+            print(f"NOTE: Official solution for {problem_name} not exist in TSPLIB95 problem set")
     
     return problem, optimal_sol
     
