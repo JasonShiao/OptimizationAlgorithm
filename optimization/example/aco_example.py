@@ -84,10 +84,10 @@ def tsp_example(args):
     #options = AntSystemOptions(AntSystemMode.AntDensity, n_ant, 100, 0.05, 1, 2)
     as_algo = AntSystem()
     cprofiler.enable()
-    as_algo.optimize(n_dim, distance_matrix, options, problem.get_graph())
+    as_algo.optimize(n_dim, distance_matrix, options, problem.get_graph() if 'node_coords' in problem.as_name_dict() else None)
     cprofiler.disable()
     cprofiler.print_stats(sort='cumulative')
-    
+    problem.as_name_dict
     # Ant Colony System
     #phi = 0.1 # by experiment, a good phi = 0.1
     #tau_0 = 1 / (n_ant * np.min(distance_matrix))
