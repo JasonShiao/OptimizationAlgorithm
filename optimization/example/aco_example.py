@@ -3,6 +3,7 @@ import re
 import cProfile
 from optimization.metaheuristic.ant_system import AntSystem, AntSystemOptions, AntSystemVariant
 from optimization.metaheuristic.ant_colony_system import AntColonySystem, AntColonySystemOptions
+from optimization.misc.utils import tsplib95_get, get_weight_matrix_from_tsplib, TSPLIB95Category
 
 cprofiler = cProfile.Profile()
 
@@ -47,24 +48,25 @@ def tsp_example(args):
         print('Processing in cycle mode...')
     else:
         print('Invalid mode selected.')
-
-    #f = open("data/tsp_problem_set/att48_d.txt")
-    import pkg_resources
-    data_file_str = pkg_resources.resource_string('optimization', f"data/tsp_problem_set/{args.problem}_d.txt")
-    matrix_str = re.split(r'\s+', data_file_str.decode("utf-8"))
-    matrix_element_list = [float(item) for item in matrix_str if item != '']
-    matrix_size = int(np.sqrt(len(matrix_element_list)))
-    distance_matrix = np.array(matrix_element_list).reshape((matrix_size, matrix_size))
-    print(f"Distance matrix = {distance_matrix}")
     
-    np.fill_diagonal(distance_matrix, np.inf)
+    problem, optimal_sol = tsplib95_get(TSPLIB95Category.TSP, args.problem)
+    try:
+        distance_matrix = get_weight_matrix_from_tsplib(problem)
+    except Exception as e:
+        distance_matrix = np.ones((10, 10))
+    if problem == None:
+        print(f"Get Problem {args.problem} failed")
+        raise FileNotFoundError
+    
+    print(f"Distance matrix = {distance_matrix}")
     #n_ant = 300
     #options = AntSystemOptions(AntSystemMode.AntCycle, n_ant, 100, 0.05, 1, 1)
     #as_algo = AntSystem(options)
     #as_algo.optimize(distance_matrix)
     
     # Ant System
-    n_ant = distance_matrix.shape[0]
+    n_dim = distance_matrix.shape[0]
+    n_ant = n_dim
     rho = 0.5
     alpha = 1
     beta = 2
@@ -79,7 +81,7 @@ def tsp_example(args):
     #options = AntSystemOptions(AntSystemMode.AntDensity, n_ant, 100, 0.05, 1, 2)
     as_algo = AntSystem()
     cprofiler.enable()
-    as_algo.optimize(distance_matrix, options)
+    as_algo.optimize(n_dim, distance_matrix, options, problem.get_graph())
     cprofiler.disable()
     cprofiler.print_stats(sort='cumulative')
     

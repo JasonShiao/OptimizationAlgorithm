@@ -2,6 +2,7 @@
 # Dorigo et al. in 1996, Ant Colony System: A Cooperative Learning Approach to the Traveling Salesman Problem
 import numpy as np
 from optimization.metaheuristic.ant_system import AntSystemVariant, AntSystemOptions, AntSystemBase
+import networkx as nx
 
 class AntColonySystemOptions(AntSystemOptions):
     def __init__(self, mode: AntSystemVariant, n_ant: int, n_iter: int, tau_0: float, 
@@ -117,7 +118,7 @@ class AntColonySystem(AntSystemBase):
         return next_pos
         
         
-    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntColonySystemOptions):
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntColonySystemOptions, node_graph: nx.classes.graph.Graph | None = None):
         # Validate input dim and matrix
         if dim > distance_matrix.shape[0] or dim > distance_matrix.shape[1]:
             raise ValueError("Distance matrix not match with the input dimension")

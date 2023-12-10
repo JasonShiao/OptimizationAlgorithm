@@ -1,6 +1,12 @@
 import numpy as np
 from enum import Enum
 import argparse
+import networkx as nx
+from bokeh.models import GraphRenderer, MultiLine, Circle, StaticLayoutProvider, LabelSet
+from bokeh.models import (BoxSelectTool, HoverTool, NodesAndLinkedEdges, TapTool)
+from bokeh.plotting import figure, output_file, show, from_networkx
+from bokeh.io import curdoc
+from bokeh.layouts import column
 
 # Book by Dorigo: https://web2.qatar.cmu.edu/~gdicaro/15382/additional/aco-book.pdf
 # TODO: Apply tau_0 for local pheromone update
@@ -27,6 +33,8 @@ class AntSystemOptions:
                 rho: float = 0.5, alpha: float = 1, beta: float = 2, Q: float = 1):
         if rho < 0 or rho > 1:
             raise ValueError("rho must be in [0, 1]")
+        if tau_0 == np.inf:
+            raise ValueError("tau_0 must be finite")
         self.algo_variant = algo_variant
         self.n_ant = n_ant # number of ants (typically set to the number of pos)
         self.max_iter = max_iter # number of iterations
@@ -68,6 +76,7 @@ class AntSystemBase:
         self.total_iter = 0
         self.best_so_far_path = []
         self.best_so_far_length = np.inf
+        self.plot = None
         
     def reset_state(self):
         self.total_iter = 0
@@ -77,7 +86,7 @@ class AntSystemBase:
     def move(self, ant: ArtificialAnt, prob_vector: np.ndarray, distance_matrix: np.ndarray):
         raise NotImplementedError("move() function must be implemented in subclass")
 
-    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions):
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions, network_graph: nx.classes.graph.Graph | None = None):
         """TODO: Add obj_function as input argument,
                  if distance matrix is None, then use obj_function with pheromone only
 
@@ -106,15 +115,80 @@ class AntSystem(AntSystemBase):
         
         # Apply tabu list
         prob_vector[ant.path] = 0  # Set probabilities for visited positions to 0
-        normalized_prob_vector = prob_vector / np.sum(prob_vector)
-        # Select next position by roulette wheel
-        #next_pos = np.random.choice(np.arange(ant.n_pos), p=prob_vector)
-        # TODO: Use cumulative sum to speed up (roulette wheel selection)
-        next_pos = self.rng.choice(np.arange(ant.n_pos), p = normalized_prob_vector)
+        if np.inf in prob_vector:
+            # select the next position directly
+            next_pos = np.argmax(distance_matrix[ant.current_pos])
+        else:
+            normalized_prob_vector = prob_vector / np.sum(prob_vector)
+            # Select next position by roulette wheel
+            #next_pos = np.random.choice(np.arange(ant.n_pos), p=prob_vector)
+            # TODO: Use cumulative sum to speed up (roulette wheel selection)
+            next_pos = self.rng.choice(np.arange(ant.n_pos), p = normalized_prob_vector)
         ant.move(next_pos, distance_matrix[ant.current_pos][next_pos])
         return ant.current_pos
     
-    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions):
+    def render_plot_nodes(self, network_graph: nx.classes.graph.Graph):
+        """_summary_
+
+        Args:
+            network_graph (nx.classes.graph.Graph): _description_
+        """
+        self.plot = figure(width=800, height=800, tools="pan,wheel_zoom", title="Best Path Graph")
+        self.plot.add_tools(HoverTool(tooltips="index: @index, info: @info"), TapTool(), BoxSelectTool())
+        self.graph_renderer = GraphRenderer()
+        self.graph_renderer.node_renderer.data_source.data = dict(
+            index=[node_idx for node_idx in network_graph.nodes()],
+            x=[data['coord'][0] for node, data in network_graph.nodes(data=True)],
+            y=[data['coord'][1] for node, data in network_graph.nodes(data=True)],
+        )
+        self.graph_renderer.edge_renderer.data_source.data = dict(
+            start=[node_idx for node_idx in range(1, 10, 1)],
+            end=[node_idx for node_idx in range(2, 11, 1)]
+        )
+        # Set the coordinates of nodes
+        pos_coord = [data['coord'] for node, data in network_graph.nodes(data=True)]
+        self.graph_renderer.layout_provider = StaticLayoutProvider(graph_layout=dict(zip(network_graph.nodes(), pos_coord)))
+        # Add labels to nodes using LabelSet
+        labels = LabelSet(x='x', y='y', text='index', level='glyph',
+                            source=self.graph_renderer.node_renderer.data_source, text_align='center', text_baseline='middle')
+        self.plot.add_layout(labels)
+        self.graph_renderer.node_renderer.glyph = Circle(size=18, fill_color="#4287f5")
+        self.graph_renderer.node_renderer.selection_glyph = Circle(size=18, fill_color="red")
+        self.graph_renderer.node_renderer.hover_glyph = Circle(size=18, fill_color="green")
+        self.graph_renderer.edge_renderer.glyph = MultiLine(line_color="black", line_alpha=0.8, line_width=1)
+        self.graph_renderer.edge_renderer.selection_glyph = MultiLine(line_color="#32a852", line_width=5)
+        self.graph_renderer.edge_renderer.hover_glyph = MultiLine(line_color="#32a852", line_width=5)
+        
+        self.graph_renderer.selection_policy = NodesAndLinkedEdges()
+        self.graph_renderer.inspection_policy = NodesAndLinkedEdges()
+        
+        self.plot.renderers.append(self.graph_renderer)
+        # Show the plot
+        #output_file('graph.html')
+        output_file('graph.html')
+        show(self.plot)
+
+    def render_plot_edges(self, node_map, best_path):
+        """_summary_
+
+        Args:
+            network_graph (nx.classes.graph.Graph): _description_
+        """
+        print("Update graph")
+        self.graph_renderer.edge_renderer.data_source.data = dict(
+            start=[node_map[best_path[i]] for i in range(len(best_path))],
+            end=[node_map[best_path[i + 1]] for i in range(len(best_path))]
+        )
+        #print(self.graph_renderer.edge_renderer.data_source.data)
+        # Update the plot
+        self.plot.renderers.clear()
+        curdoc().clear()  # Clear the existing document to avoid interference with Bokeh server sessions
+        self.plot.renderers.append(self.graph_renderer)
+        show(self.plot)
+        #import time
+        #time.sleep(0.5)
+    
+    def optimize(self, dim: int, distance_matrix: np.ndarray, options: AntSystemOptions, network_graph: nx.classes.graph.Graph | None = None):
         """_summary_
 
         Args:
@@ -134,6 +208,10 @@ class AntSystem(AntSystemBase):
         if options.algo_variant not in [AntSystemVariant.AntCycle, AntSystemVariant.AntQuantity, AntSystemVariant.AntDensity]:
             raise ValueError("Invalid algorithm variant for AS instance")
         self.options = options
+        if network_graph is not None:
+            self.render_plot_nodes(network_graph)
+        else:
+            self.plot = None
         # Initialize pheromone with tau_0
         pheromone = np.full(self.distance_matrix.shape, self.options.tau_0)
         ants: list[ArtificialAnt] = []
@@ -154,7 +232,9 @@ class AntSystem(AntSystemBase):
                 for depart_node_idx in range(len(nodes)):
                     # Calculate transition probability for the node (city) 
                     # NOTE: Tabu list for each ant is applied inside move() function
+                    #print(f"heuristic: {self.heuristic_info[depart_node_idx]}")
                     p: np.ndarray = (pheromone[depart_node_idx] ** self.options.alpha) * (self.heuristic_info[depart_node_idx] ** self.options.beta)
+                    #print(f"pherom: {pheromone[depart_node_idx]}, p: {p}")
                     for ant_idx in nodes[depart_node_idx]:
                         # Move each ant
                         new_node_idx = self.move(ants[ant_idx], p.copy(), self.distance_matrix)
@@ -184,8 +264,10 @@ class AntSystem(AntSystemBase):
             if best_ant.move_distance < self.best_so_far_length:
                 self.best_so_far_length = best_ant.move_distance
                 self.best_so_far_path = best_ant.path
+                # Update graph with the new best path
+                if self.plot is not None and network_graph is not None:
+                    self.render_plot_edges([node_idx for node_idx in network_graph.nodes()], best_ant.path)
             print(f"Best route of iteration {i} is {best_ant.path} with distance {best_ant.move_distance}, bsf distance = {self.best_so_far_length}, bsf path = {self.best_so_far_path}")
-            
             # Update pheromone offline (global update)
             # For Ant-Cycle mode, accumulate delta pheromone and divide by the distance of the complete route
             if self.options.algo_variant == AntSystemVariant.AntCycle:
