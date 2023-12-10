@@ -53,6 +53,7 @@ def tsp_example(args):
     try:
         distance_matrix = get_weight_matrix_from_tsplib(problem)
     except Exception as e:
+        # TODO: Set as None?
         distance_matrix = np.ones((10, 10))
     if problem == None:
         print(f"Get Problem {args.problem} failed")
@@ -70,7 +71,9 @@ def tsp_example(args):
     rho = 0.5
     alpha = 1
     beta = 2
-    tau_0 = n_ant / (np.min(distance_matrix))
+    # TODO: Handle np.inf case (0 exists in the matrix)
+    #tau_0 = n_ant / (np.min(distance_matrix))
+    tau_0 = n_ant / np.mean(distance_matrix)
     #options = AntSystemOptions(AntSystemMode.AntColonySystem, n_ant, 100, 0.05, 1, 1, 1, 0, np.inf, 0.03, 1, 0.2)
     #options = AntSystemOptions(AntSystemMode.MinMaxAntSystem, n_ant, 100, 0.05, 1, 1, 1, 0, 100, 0.03, 1, 0.2)
     #options = AntSystemOptions(AntSystemVariant.AntDensity, n_ant, 100, tau_0, 0.5, 1, 2, 1)

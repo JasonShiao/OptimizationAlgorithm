@@ -117,7 +117,7 @@ class AntSystem(AntSystemBase):
         prob_vector[ant.path] = 0  # Set probabilities for visited positions to 0
         if np.inf in prob_vector:
             # select the next position directly
-            next_pos = np.argmax(distance_matrix[ant.current_pos])
+            next_pos = np.argmax(prob_vector)
         else:
             normalized_prob_vector = prob_vector / np.sum(prob_vector)
             # Select next position by roulette wheel
@@ -176,8 +176,8 @@ class AntSystem(AntSystemBase):
         """
         print("Update graph")
         self.graph_renderer.edge_renderer.data_source.data = dict(
-            start=[node_map[best_path[i]] for i in range(len(best_path))],
-            end=[node_map[best_path[i + 1]] for i in range(len(best_path))]
+            start=[node_map[best_path[i]] for i in range(len(best_path) - 1)],
+            end=[node_map[best_path[i + 1]] for i in range(len(best_path) - 1)]
         )
         #print(self.graph_renderer.edge_renderer.data_source.data)
         # Update the plot
@@ -233,8 +233,9 @@ class AntSystem(AntSystemBase):
                     # Calculate transition probability for the node (city) 
                     # NOTE: Tabu list for each ant is applied inside move() function
                     #print(f"heuristic: {self.heuristic_info[depart_node_idx]}")
+                    #print(f"pherom: {pheromone[depart_node_idx]}")
                     p: np.ndarray = (pheromone[depart_node_idx] ** self.options.alpha) * (self.heuristic_info[depart_node_idx] ** self.options.beta)
-                    #print(f"pherom: {pheromone[depart_node_idx]}, p: {p}")
+                    #print(f"p: {p}")
                     for ant_idx in nodes[depart_node_idx]:
                         # Move each ant
                         new_node_idx = self.move(ants[ant_idx], p.copy(), self.distance_matrix)
