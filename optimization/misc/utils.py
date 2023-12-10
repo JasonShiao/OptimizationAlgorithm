@@ -143,6 +143,10 @@ def get_weight_matrix_from_tsplib(problem: tsplib95.models.StandardProblem):
             for i in range(len(node_list)):
                 for j in range(len(node_list)):
                     weight_matrix[i, j] = tsplib95.distances.geographical(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
-        else: # EUC_3D, MAX_3D, MAN_3D, ATT, XRAY1, XRAY2, SPECIAL
+        elif weight_type == 'ATT':
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.pseudo_euclidean(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
+        else: # EUC_3D, MAX_3D, MAN_3D, XRAY1, XRAY2, SPECIAL
             raise NotImplementedError(f"Conversion for '{weight_type}' weight type is not implemented.")
     return weight_matrix
