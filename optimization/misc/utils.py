@@ -30,7 +30,7 @@ def tsplib95_get(category: TSPLIB95Category, problem_name: str):
     Returns:
         (problem, optimal): _description_
     """
-    problem_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/{category.value}/{problem_name}.gz")
+    problem_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/{category.value}/{problem_name}.{category.value}.gz")
     solution_path = pkg_resources.resource_filename('optimization', f"data/problem_sets/TSPLIB95/{category.value}/{problem_name}.opt.tour.gz")
     problem = None
     optimal_sol = None
@@ -60,16 +60,13 @@ def get_weight_matrix_from_tsplib(problem: tsplib95.models.StandardProblem):
     Returns:
         _type_: _description_
     """
-    if problem.is_explicit():
+    # Determine the number of nodes
+    num_nodes: int = problem.as_name_dict()['dimension']
+    if problem.is_explicit(): # weight type == EXPLICIT
+        weight_format = problem.edge_weight_format
+        weight_data: list = problem.as_name_dict()['edge_weights']
+        weight_data_1d = np.array([item for sublist in weight_data for item in sublist])
         if problem.is_complete():
-            # Extract weight matrix format and data
-            weight_format = problem.edge_weight_format
-            weight_data: list = problem.as_name_dict()['edge_weights']
-            weight_data_1d = np.array([item for sublist in weight_data for item in sublist])
-
-            # Determine the number of nodes
-            num_nodes: int = problem.as_name_dict()['dimension']
-
             # Convert weight matrix format to full matrix
             if weight_format == 'FULL_MATRIX':
                 # If the format is already full matrix, use it directly
@@ -110,13 +107,42 @@ def get_weight_matrix_from_tsplib(problem: tsplib95.models.StandardProblem):
                     current_idx += (i + 1)
                 # From upper to full matrix
                 weight_matrix += weight_matrix.T
-            else:
-                # Handle other formats as needed
+            else: # FUNCTION -> Calculate from node coordinates + edge weight type
                 raise NotImplementedError(f"Conversion for '{weight_format}' format is not implemented.")
         else: # Incomplete graph
             # TODO: Should apply/return tabu list
             raise NotImplementedError("Incomplete graph is not supported")
-    else:
-        # TODO: Should calculate the weight matrix from coordinates
-        raise NotImplementedError("Implicit graph is not supported")
+    else: # weight type in [EUC_2D, EUC_3D, MAN_2D, MAN_3D, MAX_2D, MAX_3D, CEIL_2D, GEO, ATT, XRAY1, XRAY2, SPECIAL]
+        weight_type = problem.edge_weight_type
+        # Calculate the weight matrix from coordinates
+        weight_matrix = np.zeros((num_nodes, num_nodes))
+        # Create map from node_idx to node_name
+        node_list = []
+        for node_label in problem.get_nodes():
+            node_list.append(node_label)
+        # Handle other formats as needed
+        if weight_type == 'EUC_2D':
+            # Calculate the weight matrix from coordinates
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.euclidean(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
+        elif weight_type == 'MAX_2D':
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.maximum(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
+        elif weight_type == 'MAN_2D':
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.manhattan(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
+        elif weight_type == 'CEIL_2D':
+            import math
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.euclidean(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]], round=math.ceil)
+        elif weight_type == 'GEO':
+            for i in range(len(node_list)):
+                for j in range(len(node_list)):
+                    weight_matrix[i, j] = tsplib95.distances.geographical(problem.node_coords[node_list[i]], problem.node_coords[node_list[j]])
+        else: # EUC_3D, MAX_3D, MAN_3D, ATT, XRAY1, XRAY2, SPECIAL
+            raise NotImplementedError(f"Conversion for '{weight_type}' weight type is not implemented.")
     return weight_matrix
