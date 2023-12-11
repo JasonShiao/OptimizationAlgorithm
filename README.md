@@ -23,6 +23,14 @@ poetry run run_sma_example -h # See input options
 poetry run run_sma_example --bf Ackley --dim 10
 poetry run run_sma_example --bf Schwefel --dim 10
 ```
+### Example TSP visualization result (st70)
+ node            |  1
+:-------------------------:|:-------------------------:
+![st70 node](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_node.png?raw=true)  |  ![st70 1](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_1.png?raw=true)
+ 2            |  3
+![st70 2](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_2.png?raw=true)  |  ![st70 3](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_3.png?raw=true)
+ 13            |  14
+ ![st70 13](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_13.png?raw=true)  |  ![st70 14](https://github.com/JasonShiao/OptimizationAlgorithm/blob/develop/docs/img/st70_14.png?raw=true)
 
 
 ## Build the package
