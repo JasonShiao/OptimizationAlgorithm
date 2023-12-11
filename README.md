@@ -2,7 +2,7 @@
 Implement and test some optimization algorithms
 
 ## Prerequisite
-* [https://python-poetry.org/docs/#installation](Poetry) Python package manager
+* [Poetry Python package manager](https://python-poetry.org/docs/#installation)
 
 ## Run examples
 ```
