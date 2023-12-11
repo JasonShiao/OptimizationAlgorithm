@@ -141,10 +141,6 @@ class AntSystem(AntSystemBase):
             x=[data['coord'][0] for node, data in network_graph.nodes(data=True)],
             y=[data['coord'][1] for node, data in network_graph.nodes(data=True)],
         )
-        self.graph_renderer.edge_renderer.data_source.data = dict(
-            start=[node_idx for node_idx in range(1, 10, 1)],
-            end=[node_idx for node_idx in range(2, 11, 1)]
-        )
         # Set the coordinates of nodes
         pos_coord = [data['coord'] for node, data in network_graph.nodes(data=True)]
         self.graph_renderer.layout_provider = StaticLayoutProvider(graph_layout=dict(zip(network_graph.nodes(), pos_coord)))
