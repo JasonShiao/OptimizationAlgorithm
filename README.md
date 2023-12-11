@@ -15,6 +15,9 @@ poetry run run_aco_example --mode 'cycle' --problem 'att48'
 poetry run run_aco_example --mode 'cycle' --problem 'gr202'
 poetry run run_aco_example --mode 'cycle' --problem 'a280'
 
+poetry run run_sa_example -h # See input options
+poetry run run_sa_example --bf Ackley --dim 10
+
 poetry run run_pso_example -h # See input options
 poetry run run_pso_example --bf Ackley --dim 5
 
