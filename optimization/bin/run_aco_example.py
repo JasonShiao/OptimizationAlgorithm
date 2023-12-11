@@ -13,5 +13,6 @@ def main():
     #                    help='Specify the problem set', required=True)
     parser.add_argument('--problem',
                         help='Specify the problem set', required=True)
+    parser.add_argument('--profile', action='store_true', help='Enable cProfiler')
     args = parser.parse_args()
     tsp_example(args)
