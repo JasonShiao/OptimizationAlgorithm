@@ -160,9 +160,9 @@ class AntSystem(AntSystemBase):
         
         self.plot.renderers.append(self.graph_renderer)
         # Show the plot
-        #output_file('graph.html')
         output_file('graph.html')
         show(self.plot)
+        #input("Press Enter to continue...")
 
     def render_plot_edges(self, node_map, best_path):
         """_summary_

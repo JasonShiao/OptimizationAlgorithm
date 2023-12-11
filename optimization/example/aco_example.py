@@ -74,7 +74,7 @@ def tsp_example(args):
     # TODO: Handle np.inf case (0 exists in the matrix)
     #tau_0 = n_ant / (np.min(distance_matrix))
     tau_0 = n_ant / np.mean(distance_matrix)
-    options = AntSystemOptions(mode, n_ant, 100, tau_0, rho, alpha, beta, 1)
+    options = AntSystemOptions(mode, n_ant, 500, tau_0, rho, alpha, beta, 1)
     #options = AntSystemOptions(AntSystemMode.AntColonySystem, n_ant, 100, 0.05, 1, 1, 1, 0, np.inf, 0.03, 1, 0.2)
     #options = AntSystemOptions(AntSystemMode.MinMaxAntSystem, n_ant, 100, 0.05, 1, 1, 1, 0, 100, 0.03, 1, 0.2)
     #options = AntSystemOptions(AntSystemVariant.AntDensity, n_ant, 100, tau_0, 0.5, 1, 2, 1)
